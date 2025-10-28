@@ -1,0 +1,8 @@
+-- +goose Up
+ALTER TABLE feeds DROP COLUMN title;
+ALTER TABLE feeds ALTER COLUMN user_id SET NOT NULL;
+
+
+-- +goose Down
+ALTER TABLE feeds ADD COLUMN title TEXT NOT NULL DEFAULT '';
+ALTER TABLE feeds ALTER COLUMN user_id SET NOT NULL;

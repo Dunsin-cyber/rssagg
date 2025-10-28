@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Dunsin-cyber/rssagg/internal/auth"
 	db "github.com/Dunsin-cyber/rssagg/internal/database"
 	"github.com/google/uuid"
 )
@@ -38,18 +37,7 @@ func (apiCfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Reques
 	respondWithJSON(w, 201, databaseToUser(user))
 }
 
-func (apiCfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request) {
-	apiKey, err := auth.GetAPIKey(r.Header)
-	if err != nil {
-		respondWithError(w, 403, "missing or invalid api key")
-		return
-	}
-
-	user, err := apiCfg.DB.GetUserByAPIKey(r.Context(), apiKey)
-	if err != nil {
-		respondWithError(w, 400, "could not get user by api key")
-		return
-	}
+func (apiCfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request, user db.User) {
 	respondWithJSON(w, 200, databaseToUser(user))
 
 }
