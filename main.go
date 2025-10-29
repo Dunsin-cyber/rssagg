@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 
+	db "github.com/Dunsin-cyber/rssagg/internal/database"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
-	"github.com/Dunsin-cyber/rssagg/internal/database"
 
 	_ "github.com/lib/pq"
 )
@@ -67,6 +67,16 @@ func main () {
 
 	v1Router.Post("/feeds", apiCfg.middlewareAuth(apiCfg.handlerCreateFeed))
 	v1Router.Get("/feeds", apiCfg.handlerGetAllFeeds)
+
+	v1Router.Post("/feed-follows", apiCfg.middlewareAuth(apiCfg.handlerCreateFeedFollow))
+	v1Router.Get("/feed-follows", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollows))
+	v1Router.Delete("/feed-follows/{feedFollowID}", apiCfg.middlewareAuth(apiCfg.handlerDeleteFeedFollow))
+
+
+
+
+
+
 
 
 	router.Mount("/v1", v1Router)
