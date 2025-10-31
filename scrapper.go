@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
 	db "github.com/Dunsin-cyber/rssagg/internal/database"
+	"github.com/google/uuid"
 )
 
 
 func startScrapping(
-	db *db.Queries,
+	DB *db.Queries,
 	concurrency int,
 	timeBetweenRequest time.Duration,
 ) {
@@ -21,7 +24,7 @@ func startScrapping(
 	ticker := time.NewTicker(timeBetweenRequest)
 
 	for ; ; <-ticker.C {
-		feeds, err := db.GetNextFeedsToFetch(
+		feeds, err := DB.GetNextFeedsToFetch(
 			context.Background(),
 			int32(concurrency),
 		)
@@ -36,17 +39,17 @@ func startScrapping(
 		for _, feed := range feeds {
 			wg.Add(1)
 
-			go scrapeFeed(db, wg, feed)
+			go scrapeFeed(DB, wg, feed)
 		}
 		wg.Wait()
 	}
 }
 
 
-func scrapeFeed(db *db.Queries, wg *sync.WaitGroup, feed db.Feed) {
+func scrapeFeed(DB *db.Queries, wg *sync.WaitGroup, feed db.Feed) {
 	defer wg.Done()
 
-	 err := db.MarkFeedAsFetched(context.Background(), feed.ID)
+	 err := DB.MarkFeedAsFetched(context.Background(), feed.ID)
 
 	if err != nil {
 		log.Printf("failed to mark feed %s as fetched: %v", feed.ID, err)
@@ -61,7 +64,33 @@ func scrapeFeed(db *db.Queries, wg *sync.WaitGroup, feed db.Feed) {
 	}
 
 	for _, item := range rssFeed.Channel.Item {
-		log.Println("Found post:", item.Title, "on feed:", feed.Name)
+		pubAt, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err != nil {
+			log.Printf("couldn't parse date %v with err %v", item.PubDate, err)
+			continue 
+		}
+		_, err = DB.CreatePost(context.Background(), db.CreatePostParams{
+			ID:uuid.New(),
+			CreatedAt:time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+			Title: item.Title,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid: item.Description != "",
+			},
+			Url: item.Link,
+			PublishedAt: pubAt,
+			FeedID: feed.ID,
+		})
+
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key") {
+				continue
+			}
+			log.Printf("Failed to create post %v with err %v", item.Title, err )
+			continue
+		}
+
 	}
 
 	log.Printf("successfully scraped feed %s with %d items", feed.Name, len(rssFeed.Channel.Item))
