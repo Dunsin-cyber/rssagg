@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	db "github.com/Dunsin-cyber/rssagg/internal/database"
 	"github.com/go-chi/chi/v5"
@@ -20,6 +21,7 @@ type apiConfig struct {
 }
 
 func main () {
+
 	godotenv.Load(".env")
 
 	portString := os.Getenv("PORT")
@@ -41,9 +43,12 @@ func main () {
 	}
 	
 
+	db:= db.New(conn)
 	apiCfg := apiConfig{
-		DB: db.New(conn),
+		DB: db ,
 	}
+
+	go startScrapping(db, 10, time.Minute/2)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -71,12 +76,6 @@ func main () {
 	v1Router.Post("/feed-follows", apiCfg.middlewareAuth(apiCfg.handlerCreateFeedFollow))
 	v1Router.Get("/feed-follows", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollows))
 	v1Router.Delete("/feed-follows/{feedFollowID}", apiCfg.middlewareAuth(apiCfg.handlerDeleteFeedFollow))
-
-
-
-
-
-
 
 
 	router.Mount("/v1", v1Router)
